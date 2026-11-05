@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Gerador de senha temporária</title>
+<style>
+:root{
+  --bg:#eef4fc;--surface:#ffffff;--ink:#0f2347;--muted:#53657f;--accent:#1b4fd8;--on-accent:#ffffff;
+  --line:#c9d8ef;--soft:#e3edfb;--warn:#8a4b00;--warn-bg:#fff3de;--err:#b3261e;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1526;--surface:#14203a;--ink:#e6edf9;--muted:#9fb0cc;--accent:#6b9bff;--on-accent:#0c1526;
+    --line:#263859;--soft:#1b2c4c;--warn:#f3c77d;--warn-bg:#2f2410;--err:#ff8a80;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1526;--surface:#14203a;--ink:#e6edf9;--muted:#9fb0cc;--accent:#6b9bff;--on-accent:#0c1526;
+  --line:#263859;--soft:#1b2c4c;--warn:#f3c77d;--warn-bg:#2f2410;--err:#ff8a80;color-scheme:dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:1.5rem 1rem 2.5rem}
+h1{font-size:1.6rem;line-height:1.2;margin:0 0 .5rem;letter-spacing:-.01em}
+.lead{margin:0 0 1.25rem;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.25rem}
+label{display:block;font-weight:600;margin:0 0 .3rem}
+.hint{display:block;font-weight:400;font-size:.85rem;color:var(--muted)}
+.field{margin-bottom:1rem}
+input{width:100%;font:inherit;color:var(--ink);caret-color:var(--accent);background-color:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:.7rem .8rem}
+input:focus{color:var(--ink);background-color:var(--bg)}
+input::placeholder{color:var(--muted);opacity:.8}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:.8rem 1.1rem;cursor:pointer;background:var(--accent);color:var(--on-accent);width:100%}
+button.ghost{background:var(--soft);color:var(--ink);width:auto;padding:.55rem .9rem}
+.err{color:var(--err);font-weight:600;margin:.75rem 0 0}
+#result{margin-top:1.25rem}
+#result[hidden]{display:none}
+.pw{font:700 clamp(1.5rem,7vw,2.1rem)/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace;word-break:break-all;margin:.25rem 0 .75rem;padding:.8rem 1rem;background:var(--soft);border-radius:12px}
+.parts{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;margin:0 0 1rem;padding:0;list-style:none}
+.parts li{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.4rem .25rem;text-align:center}
+.parts b{display:block;font-size:1.1rem}
+.parts span{display:block;font-size:.68rem;line-height:1.25;color:var(--muted)}
+.row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.msg{font-size:.9rem;color:var(--muted)}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:.65rem .8rem;font-size:.9rem;margin:.75rem 0 0}
+.note[hidden]{display:none}
+.disclaimer{margin-top:1.25rem;border-left:4px solid var(--accent);padding:.2rem 0 .2rem .9rem;font-size:.92rem}
+.disclaimer p{margin:.3rem 0}
+.small{font-size:.82rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Gerador de senha temporária</h1>
+  <p class="lead">Preencha seus dados e veja a senha temporária de primeiro acesso, montada pela regra do comunicado.</p>
+
+  <div class="card">
+    <form id="f" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="nome">Nome completo <span class="hint">Como consta no seu cadastro</span></label>
+        <input id="nome" type="text" autocomplete="off" autocapitalize="words" placeholder="Ex.: João da Silva Santos">
+      </div>
+      <div class="field">
+        <label for="cpf">CPF</label>
+        <input id="cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00">
+      </div>
+      <div class="field">
+        <label for="ano">Ano de nascimento <span class="hint">Quatro dígitos</span></label>
+        <input id="ano" type="text" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="Ex.: 1995">
+      </div>
+      <button type="submit">Gerar senha temporária</button>
+      <p id="erro" class="err" role="alert" hidden></p>
+    </form>
+
+    <section id="result" hidden aria-live="polite">
+      <div class="small">Sua senha temporária</div>
+      <div id="pw" class="pw"></div>
+      <ul class="parts" id="parts"></ul>
+      <div class="row">
+        <button type="button" class="ghost" id="copy">Copiar senha</button>
+        <span class="msg" id="copymsg"></span>
+      </div>
+      <p class="note" id="note1" hidden></p>
+      <p class="note" id="note2" hidden></p>
+      <p class="small">Após o primeiro acesso, cadastre uma nova senha pessoal.</p>
+    </section>
+  </div>
+
+  <div class="disclaimer">
+    <p><strong>Nenhum dado é armazenado.</strong> Nome, CPF e ano de nascimento são usados apenas para calcular a senha, dentro do seu próprio navegador. Nada é enviado, gravado ou compartilhado, e tudo some quando você fecha ou atualiza a página.</p>
+    <p class="small">Esta é uma página de apoio criada por um colega, sem vínculo oficial com a instituição.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var strip = function(s){ return s.normalize('NFD').replace(/[\u0300-\u036f]/g,''); };
+  var SUFIXOS = ['filho','filha','junior','júnior','jr','neto','neta','sobrinho','sobrinha'];
+
+  function mask(v){
+    var d = v.replace(/\D/g,'').slice(0,11), o = d;
+    if (d.length > 9) o = d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9);
+    else if (d.length > 6) o = d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6);
+    else if (d.length > 3) o = d.slice(0,3)+'.'+d.slice(3);
+    return o;
+  }
+  function cpfOk(d){
+    if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+    for (var t = 9; t < 11; t++){
+      var s = 0;
+      for (var i = 0; i < t; i++) s += Number(d[i]) * (t + 1 - i);
+      if (((s * 10) % 11) % 10 !== Number(d[t])) return false;
+    }
+    return true;
+  }
+  function showErr(m){ var e = $('erro'); e.textContent = m; e.hidden = !m; }
+
+  $('cpf').addEventListener('input', function(e){ var m = mask(e.target.value); if (m !== e.target.value) e.target.value = m; });
+  $('ano').addEventListener('input', function(e){ e.target.value = e.target.value.replace(/\D/g,'').slice(0,4); });
+
+  $('f').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    showErr(''); $('result').hidden = true; $('copymsg').textContent = '';
+    var palavras = $('nome').value.trim().split(/\s+/).filter(Boolean);
+    var cpf = $('cpf').value.replace(/\D/g,'');
+    var ano = $('ano').value.trim();
+
+    if (palavras.length < 2) return showErr('Digite o nome completo, com nome e sobrenome.');
+    if (cpf.length !== 11) return showErr('O CPF precisa ter 11 dígitos.');
+    if (!/^\d{4}$/.test(ano) || +ano < 1900 || +ano > new Date().getFullYear()) return showErr('Digite o ano de nascimento com 4 dígitos.');
+
+    var primeiro = palavras[0], ultimo = palavras[palavras.length - 1];
+    var a = primeiro.charAt(0).toLocaleUpperCase('pt-BR');
+    var b = ultimo.charAt(0).toLocaleLowerCase('pt-BR');
+    var c = cpf.slice(-4), y = ano.slice(-2);
+    var senha = a + b + '@' + c + y;
+
+    $('pw').textContent = senha;
+    var partes = [[a,'1ª letra do nome'],[b,'1ª letra do sobrenome'],['@','caractere especial'],[c,'4 últimos do CPF'],[y,'2 últimos do ano']];
+    var ul = $('parts'); ul.textContent = '';
+    partes.forEach(function(p){
+      var li = document.createElement('li'), bold = document.createElement('b'), sp = document.createElement('span');
+      bold.textContent = p[0]; sp.textContent = p[1];
+      li.appendChild(bold); li.appendChild(sp); ul.appendChild(li);
+    });
+
+    var n1 = $('note1'), n2 = $('note2'); n1.hidden = n2.hidden = true;
+    if (!cpfOk(cpf)){
+      n1.textContent = 'Atenção: este CPF não passou na verificação. Confira se digitou corretamente, pois um dígito errado muda a senha.';
+      n1.hidden = false;
+    }
+    var msgs = [];
+    if (strip(a) !== a || strip(b.toUpperCase()).toLowerCase() !== b){
+      msgs.push('Seu nome tem letra acentuada na inicial. Se a senha não funcionar, tente sem acento: ' + strip(a) + strip(b.toUpperCase()).toLowerCase() + '@' + c + y + '.');
+    }
+    if (SUFIXOS.indexOf(ultimo.toLowerCase()) !== -1 && palavras.length > 2){
+      var ant = palavras[palavras.length - 2].charAt(0).toLocaleLowerCase('pt-BR');
+      msgs.push('Seu nome termina em “' + ultimo + '”. Se a senha não funcionar, tente com a inicial do sobrenome anterior: ' + a + ant + '@' + c + y + '.');
+    }
+    if (msgs.length){ n2.textContent = msgs.join(' '); n2.hidden = false; }
+    $('result').hidden = false;
+  });
+
+  $('copy').addEventListener('click', function(){
+    var t = $('pw').textContent, m = $('copymsg');
+    function ok(){ m.textContent = 'Copiada.'; }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? ok() : (m.textContent = 'Selecione e copie manualmente.'); }
+      catch (e) { m.textContent = 'Selecione e copie manualmente.'; }
+      document.body.removeChild(ta);
+    }
+    try { navigator.clipboard.writeText(t).then(ok, fallback); } catch (e) { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
